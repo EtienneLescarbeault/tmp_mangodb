@@ -67,9 +67,11 @@ import freemarker.template.Template;
  * @author Matthew Lohbihler
  */
 public class ReportChartCreator {
+
     static final Log LOG = LogFactory.getLog(ReportChartCreator.class);
 
     private static final String IMAGE_SERVLET = "reportImageChart/";
+
     /**
      * This image width is specifically chosen such that the report will print on a single page width in landscape.
      */
@@ -115,6 +117,7 @@ public class ReportChartCreator {
         // Use a stream handler to get the report data from the database.
         StreamHandler handler = new StreamHandler(reportInstance.getReportStartTime(),
                 reportInstance.getReportEndTime(), IMAGE_WIDTH, createExportFile, bundle);
+
         // Process the report content with the handler.
         reportDao.reportInstanceData(reportInstance.getId(), handler);
 
@@ -137,6 +140,7 @@ public class ReportChartCreator {
 
         // Create the individual point charts
         for (PointStatistics pointStat : pointStatistics) {
+
             PointTimeSeriesCollection ptsc = new PointTimeSeriesCollection();
 
             if (pointStat.getNumericTimeSeries() != null)
@@ -152,7 +156,9 @@ public class ReportChartCreator {
         }
 
         PointTimeSeriesCollection ptsc = handler.getPointTimeSeriesCollection();
+
         if (ptsc.hasData()) {
+
             if (inlinePrefix != null)
                 model.put("chartName", inlinePrefix + IMAGE_CONTENT_ID);
             else {
@@ -165,7 +171,9 @@ public class ReportChartCreator {
         }
 
         List<EventInstance> events = null;
+
         if (reportInstance.getIncludeEvents() != ReportVO.EVENTS_NONE) {
+
             events = reportDao.getReportInstanceEvents(reportInstance.getId());
             model.put("includeEvents", true);
             model.put("events", events);
@@ -174,13 +182,16 @@ public class ReportChartCreator {
             model.put("includeEvents", false);
 
         List<ReportUserComment> comments = null;
+
         if (reportInstance.isIncludeUserComments()) {
+
             comments = reportDao.getReportInstanceUserComments(reportInstance.getId());
 
             // Only provide the list of point comments to the report. The event comments have already be correlated
             // into the events list.
             List<ReportUserComment> pointComments = new ArrayList<ReportUserComment>();
             for (ReportUserComment c : comments) {
+
                 if (c.getCommentType() == UserComment.TYPE_POINT)
                     pointComments.add(c);
             }
@@ -193,6 +204,7 @@ public class ReportChartCreator {
 
         // Create the template.
         Template template;
+
         try {
             template = Common.ctx.getFreemarkerConfig().getTemplate("report/reportChart.ftl");
         }
@@ -203,6 +215,7 @@ public class ReportChartCreator {
 
         // Create the content from the template.
         StringWriter writer = new StringWriter();
+
         try {
             template.process(model, writer);
         }
@@ -213,12 +226,14 @@ public class ReportChartCreator {
 
         // Save the content
         html = writer.toString();
+
         inlineImageList = inlineImages.getImageList();
 
-        // Save the export file (if any)
+        // Save the export csv file (if any)
         exportFile = handler.exportFile;
 
         if (createExportFile && events != null) {
+
             try {
                 eventFile = File.createTempFile("tempEventCSV", ".csv");
                 new EventCsvStreamer(new PrintWriter(new FileWriter(eventFile)), events, bundle);
@@ -229,6 +244,7 @@ public class ReportChartCreator {
         }
 
         if (createExportFile && comments != null) {
+
             try {
                 commentFile = File.createTempFile("tempCommentCSV", ".csv");
                 new UserCommentCsvStreamer(new PrintWriter(new FileWriter(commentFile)), comments, bundle);
@@ -399,8 +415,10 @@ public class ReportChartCreator {
         public List<StartsAndRuntimeWrapper> getStartsAndRuntimes() {
             List<StartsAndRuntime> original = ((StartsAndRuntimeList) stats).getData();
             List<StartsAndRuntimeWrapper> result = new ArrayList<StartsAndRuntimeWrapper>(original.size());
+
             for (StartsAndRuntime sar : original)
                 result.add(new StartsAndRuntimeWrapper(sar, textRenderer));
+
             return result;
         }
 
@@ -469,7 +487,9 @@ public class ReportChartCreator {
             this.start = start;
             this.end = end;
             this.imageWidth = imageWidth * 10;
+
             try {
+
                 if (createExportFile) {
                     exportFile = File.createTempFile("tempCSV", ".csv");
                     reportCsvStreamer = new ReportCsvStreamer(new PrintWriter(new FileWriter(exportFile)), bundle);
@@ -497,12 +517,15 @@ public class ReportChartCreator {
             point.setDataTypeDescription(DataTypes.getDataTypeMessage(pointInfo.getDataType()).getLocalizedMessage(
                     bundle));
             point.setTextRenderer(pointInfo.getTextRenderer());
+
             if (pointInfo.getStartValue() != null)
                 point.setStartValue(pointInfo.getTextRenderer().getText(pointInfo.getStartValue(),
                         TextRenderer.HINT_FULL));
+
             pointStatistics.add(point);
 
             Color colour = null;
+
             try {
                 if (pointInfo.getColour() != null)
                     colour = ColorUtils.toColor("#" + pointInfo.getColour());
@@ -511,54 +534,64 @@ public class ReportChartCreator {
                 // Should never happen, but leave the color null in case it does.
             }
 
-            if (pointInfo.getDataType() == DataTypes.NUMERIC) {
-                point.setStats(new AnalogStatistics(pointInfo.getStartValue() == null ? null : pointInfo
-                        .getStartValue().getDoubleValue(), start, end));
-                quantizer = new NumericDataQuantizer(start, end, imageWidth, this);
+            switch(pointInfo.getDataType()) {
 
-                discreteTimeSeries = null;
-                numericTimeSeries = new TimeSeries(pointInfo.getExtendedName(), null, null, Second.class);
-                numericTimeSeries.setRangeDescription(point.getTextRenderer().getMetaText());
-                point.setNumericTimeSeries(numericTimeSeries);
-                point.setNumericTimeSeriesColor(colour);
-                if (pointInfo.isConsolidatedChart())
-                    pointTimeSeriesCollection.addNumericTimeSeries(numericTimeSeries, colour);
-            }
-            else if (pointInfo.getDataType() == DataTypes.MULTISTATE) {
-                point.setStats(new StartsAndRuntimeList(pointInfo.getStartValue(), start, end));
-                quantizer = new MultistateDataQuantizer(start, end, imageWidth, this);
+                case DataTypes.NUMERIC:
+                    point.setStats(new AnalogStatistics(pointInfo.getStartValue() == null ? null : pointInfo
+                            .getStartValue().getDoubleValue(), start, end));
+                    quantizer = new NumericDataQuantizer(start, end, imageWidth, this);
 
-                discreteTimeSeries = new DiscreteTimeSeries(pointInfo.getExtendedName(), pointInfo.getTextRenderer(),
-                        colour);
-                point.setDiscreteTimeSeries(discreteTimeSeries);
-                if (pointInfo.isConsolidatedChart())
-                    pointTimeSeriesCollection.addDiscreteTimeSeries(discreteTimeSeries);
-                numericTimeSeries = null;
-            }
-            else if (pointInfo.getDataType() == DataTypes.BINARY) {
-                point.setStats(new StartsAndRuntimeList(pointInfo.getStartValue(), start, end));
-                quantizer = new BinaryDataQuantizer(start, end, imageWidth, this);
+                    discreteTimeSeries = null;
 
-                discreteTimeSeries = new DiscreteTimeSeries(pointInfo.getExtendedName(), pointInfo.getTextRenderer(),
-                        colour);
-                point.setDiscreteTimeSeries(discreteTimeSeries);
-                if (pointInfo.isConsolidatedChart())
-                    pointTimeSeriesCollection.addDiscreteTimeSeries(discreteTimeSeries);
-                numericTimeSeries = null;
-            }
-            else if (pointInfo.getDataType() == DataTypes.ALPHANUMERIC) {
-                point.setStats(new ValueChangeCounter(pointInfo.getStartValue()));
-                quantizer = null;
+                    numericTimeSeries = new TimeSeries(pointInfo.getExtendedName(), null, null, Second.class);
+                    numericTimeSeries.setRangeDescription(point.getTextRenderer().getMetaText());
 
-                discreteTimeSeries = null;
-                numericTimeSeries = null;
-            }
-            else if (pointInfo.getDataType() == DataTypes.IMAGE) {
-                point.setStats(new ValueChangeCounter(pointInfo.getStartValue()));
-                quantizer = null;
+                    point.setNumericTimeSeries(numericTimeSeries);
+                    point.setNumericTimeSeriesColor(colour);
 
-                discreteTimeSeries = null;
-                numericTimeSeries = null;
+                    if (pointInfo.isConsolidatedChart())
+                        pointTimeSeriesCollection.addNumericTimeSeries(numericTimeSeries, colour);
+            
+                case DataTypes.MULTISTATE:
+                    point.setStats(new StartsAndRuntimeList(pointInfo.getStartValue(), start, end));
+                    quantizer = new MultistateDataQuantizer(start, end, imageWidth, this);
+
+                    discreteTimeSeries = new DiscreteTimeSeries(pointInfo.getExtendedName(), pointInfo.getTextRenderer(),
+                            colour);
+                    point.setDiscreteTimeSeries(discreteTimeSeries);
+
+                    if (pointInfo.isConsolidatedChart())
+                        pointTimeSeriesCollection.addDiscreteTimeSeries(discreteTimeSeries);
+
+                    numericTimeSeries = null;
+            
+                case DataTypes.BINARY:
+                    point.setStats(new StartsAndRuntimeList(pointInfo.getStartValue(), start, end));
+                    quantizer = new BinaryDataQuantizer(start, end, imageWidth, this);
+
+                    discreteTimeSeries = new DiscreteTimeSeries(pointInfo.getExtendedName(), pointInfo.getTextRenderer(),
+                            colour);
+
+                    point.setDiscreteTimeSeries(discreteTimeSeries);
+
+                    if (pointInfo.isConsolidatedChart())
+                        pointTimeSeriesCollection.addDiscreteTimeSeries(discreteTimeSeries);
+
+                    numericTimeSeries = null;
+                
+                case DataTypes.ALPHANUMERIC:
+                    point.setStats(new ValueChangeCounter(pointInfo.getStartValue()));
+                    quantizer = null;
+
+                    discreteTimeSeries = null;
+                    numericTimeSeries = null;
+            
+                case DataTypes.IMAGE:
+                    point.setStats(new ValueChangeCounter(pointInfo.getStartValue()));
+                    quantizer = null;
+
+                    discreteTimeSeries = null;
+                    numericTimeSeries = null;
             }
 
             if (reportCsvStreamer != null)
@@ -568,7 +601,9 @@ public class ReportChartCreator {
         public void pointData(ReportDataValue rdv) {
             if (quantizer != null)
                 quantizer.data(rdv.getValue(), rdv.getTime());
+
             point.getStats().addValueTime(rdv);
+
             if (reportCsvStreamer != null)
                 reportCsvStreamer.pointData(rdv);
         }
@@ -576,12 +611,14 @@ public class ReportChartCreator {
         private void donePoint() {
             if (quantizer != null)
                 quantizer.done();
+
             if (point != null)
                 point.getStats().done();
         }
 
         public void done() {
             donePoint();
+
             if (reportCsvStreamer != null)
                 reportCsvStreamer.done();
         }

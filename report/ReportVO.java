@@ -89,6 +89,7 @@ public class ReportVO implements Serializable {
     public ReportVO() {
         // Default the specific date fields.
         DateTime dt = DateUtils.truncateDateTime(new DateTime(), Common.TimePeriods.DAYS);
+
         toYear = dt.getYear();
         toMonth = dt.getMonthOfYear();
         toDay = dt.getDayOfMonth();
@@ -96,6 +97,7 @@ public class ReportVO implements Serializable {
         toMinute = dt.getMinuteOfHour();
 
         dt = DateUtils.minus(dt, Common.TimePeriods.DAYS, 1);
+
         fromYear = dt.getYear();
         fromMonth = dt.getMonthOfYear();
         fromDay = dt.getDayOfMonth();
@@ -386,6 +388,7 @@ public class ReportVO implements Serializable {
         out.writeInt(fromDay);
         out.writeInt(fromHour);
         out.writeInt(fromMinute);
+
         out.writeBoolean(toNone);
         out.writeInt(toYear);
         out.writeInt(toMonth);
@@ -396,7 +399,9 @@ public class ReportVO implements Serializable {
         out.writeBoolean(schedule);
         out.writeInt(schedulePeriod);
         out.writeInt(runDelayMinutes);
+
         SerializationHelper.writeSafeUTF(out, scheduleCron);
+
         out.writeBoolean(email);
         out.writeObject(recipients);
         out.writeBoolean(includeData);
@@ -405,220 +410,54 @@ public class ReportVO implements Serializable {
 
     @SuppressWarnings("unchecked")
     private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
-        int ver = in.readInt();
-
         // Switch on the version of the class so that version changes can be elegantly handled.
-        if (ver == 1) {
-            points = convertToReportPointVOs((List<Integer>) in.readObject());
-            includeEvents = EVENTS_ALARMS;
-            includeUserComments = true;
-            dateRangeType = in.readInt();
-            relativeDateType = in.readInt();
+        int ver = in.readInt();
+        points = (ver >= 5)? (List<ReportPointVO>) in.readObject() : convertToReportPointVOs((List<Integer>) in.readObject());
 
-            previousPeriodCount = in.readInt();
-            previousPeriodType = in.readInt();
-            pastPeriodCount = in.readInt();
-            pastPeriodType = in.readInt();
+        includeEvents = (ver <= 2)? EVENTS_ALARMS : in.readInt();
+        includeUserComments = (ver <= 3)? true : in.readBoolean();
 
-            fromNone = in.readBoolean();
-            fromYear = in.readInt();
-            fromMonth = in.readInt();
-            fromDay = in.readInt();
-            fromHour = in.readInt();
-            fromMinute = in.readInt();
-            toNone = in.readBoolean();
-            toYear = in.readInt();
-            toMonth = in.readInt();
-            toDay = in.readInt();
-            toHour = in.readInt();
-            toMinute = in.readInt();
+        dateRangeType = in.readInt();
+        relativeDateType = in.readInt();
 
-            schedule = in.readBoolean();
-            schedulePeriod = in.readInt();
-            runDelayMinutes = 0;
-            scheduleCron = SerializationHelper.readSafeUTF(in);
-            email = in.readBoolean();
-            recipients = (List<RecipientListEntryBean>) in.readObject();
-            includeData = in.readBoolean();
-            zipData = false;
-        }
-        else if (ver == 2) {
-            points = convertToReportPointVOs((List<Integer>) in.readObject());
-            includeEvents = EVENTS_ALARMS;
-            includeUserComments = true;
-            dateRangeType = in.readInt();
-            relativeDateType = in.readInt();
+        previousPeriodCount = in.readInt();
+        previousPeriodType = in.readInt();
+        pastPeriodCount = in.readInt();
+        pastPeriodType = in.readInt();
 
-            previousPeriodCount = in.readInt();
-            previousPeriodType = in.readInt();
-            pastPeriodCount = in.readInt();
-            pastPeriodType = in.readInt();
+        fromNone = in.readBoolean();
+        fromYear = in.readInt();
+        fromMonth = in.readInt();
+        fromDay = in.readInt();
+        fromHour = in.readInt();
+        fromMinute = in.readInt();
 
-            fromNone = in.readBoolean();
-            fromYear = in.readInt();
-            fromMonth = in.readInt();
-            fromDay = in.readInt();
-            fromHour = in.readInt();
-            fromMinute = in.readInt();
-            toNone = in.readBoolean();
-            toYear = in.readInt();
-            toMonth = in.readInt();
-            toDay = in.readInt();
-            toHour = in.readInt();
-            toMinute = in.readInt();
+        toNone = in.readBoolean();
+        toYear = in.readInt();
+        toMonth = in.readInt();
+        toDay = in.readInt();
+        toHour = in.readInt();
+        toMinute = in.readInt();
 
-            schedule = in.readBoolean();
-            schedulePeriod = in.readInt();
-            runDelayMinutes = in.readInt();
-            scheduleCron = SerializationHelper.readSafeUTF(in);
-            email = in.readBoolean();
-            recipients = (List<RecipientListEntryBean>) in.readObject();
-            includeData = in.readBoolean();
-            zipData = false;
-        }
-        else if (ver == 3) {
-            points = convertToReportPointVOs((List<Integer>) in.readObject());
-            includeEvents = in.readInt();
-            includeUserComments = true;
-            dateRangeType = in.readInt();
-            relativeDateType = in.readInt();
+        schedule = in.readBoolean();
+        schedulePeriod = in.readInt();
+        runDelayMinutes = (ver == 1)? 0 : in.readInt();
+        scheduleCron = SerializationHelper.readSafeUTF(in);
 
-            previousPeriodCount = in.readInt();
-            previousPeriodType = in.readInt();
-            pastPeriodCount = in.readInt();
-            pastPeriodType = in.readInt();
-
-            fromNone = in.readBoolean();
-            fromYear = in.readInt();
-            fromMonth = in.readInt();
-            fromDay = in.readInt();
-            fromHour = in.readInt();
-            fromMinute = in.readInt();
-            toNone = in.readBoolean();
-            toYear = in.readInt();
-            toMonth = in.readInt();
-            toDay = in.readInt();
-            toHour = in.readInt();
-            toMinute = in.readInt();
-
-            schedule = in.readBoolean();
-            schedulePeriod = in.readInt();
-            runDelayMinutes = in.readInt();
-            scheduleCron = SerializationHelper.readSafeUTF(in);
-            email = in.readBoolean();
-            recipients = (List<RecipientListEntryBean>) in.readObject();
-            includeData = in.readBoolean();
-            zipData = false;
-        }
-        else if (ver == 4) {
-            points = convertToReportPointVOs((List<Integer>) in.readObject());
-            includeEvents = in.readInt();
-            includeUserComments = in.readBoolean();
-            dateRangeType = in.readInt();
-            relativeDateType = in.readInt();
-
-            previousPeriodCount = in.readInt();
-            previousPeriodType = in.readInt();
-            pastPeriodCount = in.readInt();
-            pastPeriodType = in.readInt();
-
-            fromNone = in.readBoolean();
-            fromYear = in.readInt();
-            fromMonth = in.readInt();
-            fromDay = in.readInt();
-            fromHour = in.readInt();
-            fromMinute = in.readInt();
-            toNone = in.readBoolean();
-            toYear = in.readInt();
-            toMonth = in.readInt();
-            toDay = in.readInt();
-            toHour = in.readInt();
-            toMinute = in.readInt();
-
-            schedule = in.readBoolean();
-            schedulePeriod = in.readInt();
-            runDelayMinutes = in.readInt();
-            scheduleCron = SerializationHelper.readSafeUTF(in);
-            email = in.readBoolean();
-            recipients = (List<RecipientListEntryBean>) in.readObject();
-            includeData = in.readBoolean();
-            zipData = false;
-        }
-        else if (ver == 5) {
-            points = (List<ReportPointVO>) in.readObject();
-            includeEvents = in.readInt();
-            includeUserComments = in.readBoolean();
-            dateRangeType = in.readInt();
-            relativeDateType = in.readInt();
-
-            previousPeriodCount = in.readInt();
-            previousPeriodType = in.readInt();
-            pastPeriodCount = in.readInt();
-            pastPeriodType = in.readInt();
-
-            fromNone = in.readBoolean();
-            fromYear = in.readInt();
-            fromMonth = in.readInt();
-            fromDay = in.readInt();
-            fromHour = in.readInt();
-            fromMinute = in.readInt();
-            toNone = in.readBoolean();
-            toYear = in.readInt();
-            toMonth = in.readInt();
-            toDay = in.readInt();
-            toHour = in.readInt();
-            toMinute = in.readInt();
-
-            schedule = in.readBoolean();
-            schedulePeriod = in.readInt();
-            runDelayMinutes = in.readInt();
-            scheduleCron = SerializationHelper.readSafeUTF(in);
-            email = in.readBoolean();
-            recipients = (List<RecipientListEntryBean>) in.readObject();
-            includeData = in.readBoolean();
-            zipData = false;
-        }
-        else if (ver == 6) {
-            points = (List<ReportPointVO>) in.readObject();
-            includeEvents = in.readInt();
-            includeUserComments = in.readBoolean();
-            dateRangeType = in.readInt();
-            relativeDateType = in.readInt();
-
-            previousPeriodCount = in.readInt();
-            previousPeriodType = in.readInt();
-            pastPeriodCount = in.readInt();
-            pastPeriodType = in.readInt();
-
-            fromNone = in.readBoolean();
-            fromYear = in.readInt();
-            fromMonth = in.readInt();
-            fromDay = in.readInt();
-            fromHour = in.readInt();
-            fromMinute = in.readInt();
-            toNone = in.readBoolean();
-            toYear = in.readInt();
-            toMonth = in.readInt();
-            toDay = in.readInt();
-            toHour = in.readInt();
-            toMinute = in.readInt();
-
-            schedule = in.readBoolean();
-            schedulePeriod = in.readInt();
-            runDelayMinutes = in.readInt();
-            scheduleCron = SerializationHelper.readSafeUTF(in);
-            email = in.readBoolean();
-            recipients = (List<RecipientListEntryBean>) in.readObject();
-            includeData = in.readBoolean();
-            zipData = in.readBoolean();
-        }
+        email = in.readBoolean();
+        recipients = (List<RecipientListEntryBean>) in.readObject();
+        includeData = in.readBoolean();
+        zipData = (ver >= 6)? in.readBoolean() : false ;
     }
 
     private static List<ReportPointVO> convertToReportPointVOs(List<Integer> ids) {
         List<ReportPointVO> result = new ArrayList<ReportPointVO>();
+
         for (Integer id : ids) {
+
             ReportPointVO vo = new ReportPointVO();
             vo.setPointId(id);
+
             result.add(vo);
         }
         return result;
